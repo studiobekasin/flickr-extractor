@@ -9,7 +9,7 @@
             padding: 0;
         }
         body {
-            width: 450px;
+            width: 480px;
             min-height: 300px;
             max-height: 600px;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -28,12 +28,10 @@
             align-items: center;
             gap: 8px;
         }
-        .header span {
-            font-size: 18px;
-        }
+        .header span { font-size: 18px; }
         .content {
             padding: 15px;
-            max-height: 500px;
+            max-height: 540px;
             overflow-y: auto;
         }
         .status {
@@ -44,18 +42,9 @@
             font-size: 12px;
             color: #aaa;
         }
-        .status.success {
-            background: #1e3a2f;
-            color: #4ade80;
-        }
-        .status.error {
-            background: #3a1e1e;
-            color: #f87171;
-        }
-        .status.loading {
-            background: #2e2a1e;
-            color: #fbbf24;
-        }
+        .status.success { background: #1e3a2f; color: #4ade80; }
+        .status.error { background: #3a1e1e; color: #f87171; }
+        .status.loading { background: #2e2a1e; color: #fbbf24; }
         .btn {
             display: block;
             width: 100%;
@@ -70,29 +59,19 @@
             cursor: pointer;
             transition: all 0.2s;
         }
-        .btn:hover {
-            background: #e8c547;
-            transform: translateY(-1px);
+        .btn:hover { background: #e8c547; transform: translateY(-1px); }
+        .btn:active { transform: translateY(0); }
+        .btn:disabled { background: #555; color: #888; cursor: not-allowed; transform: none; }
+        .btn-secondary { background: #333; color: #ddd; }
+        .btn-secondary:hover { background: #444; }
+        .btn-small {
+            display: inline-block;
+            width: auto;
+            padding: 5px 12px;
+            margin-bottom: 0;
+            font-size: 11px;
         }
-        .btn:active {
-            transform: translateY(0);
-        }
-        .btn:disabled {
-            background: #555;
-            color: #888;
-            cursor: not-allowed;
-            transform: none;
-        }
-        .btn-secondary {
-            background: #333;
-            color: #ddd;
-        }
-        .btn-secondary:hover {
-            background: #444;
-        }
-        .section {
-            margin-bottom: 15px;
-        }
+        .section { margin-bottom: 15px; }
         .section-title {
             font-size: 11px;
             text-transform: uppercase;
@@ -101,7 +80,7 @@
             margin-bottom: 8px;
         }
         .album-list {
-            max-height: 150px;
+            max-height: 200px;
             overflow-y: auto;
             background: #252540;
             border-radius: 6px;
@@ -110,32 +89,35 @@
             padding: 8px 12px;
             border-bottom: 1px solid #333;
             display: flex;
-            justify-content: space-between;
             align-items: center;
-            cursor: pointer;
+            gap: 8px;
             transition: background 0.2s;
         }
-        .album-item:last-child {
-            border-bottom: none;
-        }
-        .album-item:hover {
-            background: #333;
-        }
-        .album-item.selected {
-            background: #3a3a5a;
-        }
+        .album-item:last-child { border-bottom: none; }
+        .album-item:hover { background: #333; }
+        .album-item input[type="checkbox"] { accent-color: #d4af37; flex-shrink: 0; }
         .album-name {
             font-weight: 500;
             flex: 1;
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
+            cursor: pointer;
         }
-        .album-count {
-            font-size: 11px;
+        .album-status {
+            font-size: 10px;
+            flex-shrink: 0;
             color: #888;
-            margin-left: 10px;
         }
+        .album-status.fetching { color: #fbbf24; }
+        .album-status.done { color: #4ade80; }
+        .album-controls {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 10px;
+            align-items: center;
+        }
+        .album-controls span { font-size: 11px; color: #888; }
         .output-area {
             width: 100%;
             height: 200px;
@@ -149,10 +131,7 @@
             resize: vertical;
             margin-bottom: 10px;
         }
-        .output-area:focus {
-            outline: none;
-            border-color: #d4af37;
-        }
+        .output-area:focus { outline: none; border-color: #d4af37; }
         .stats {
             display: flex;
             gap: 15px;
@@ -165,16 +144,8 @@
             flex: 1;
             text-align: center;
         }
-        .stat-value {
-            font-size: 20px;
-            font-weight: bold;
-            color: #d4af37;
-        }
-        .stat-label {
-            font-size: 10px;
-            color: #888;
-            text-transform: uppercase;
-        }
+        .stat-value { font-size: 20px; font-weight: bold; color: #d4af37; }
+        .stat-label { font-size: 10px; color: #888; text-transform: uppercase; }
         .tabs {
             display: flex;
             gap: 5px;
@@ -191,27 +162,23 @@
             cursor: pointer;
             transition: all 0.2s;
         }
-        .tab:hover {
-            background: #333;
+        .tab:hover { background: #333; }
+        .tab.active { background: #d4af37; color: #1a1a2e; font-weight: 600; }
+        .hidden { display: none; }
+        .radio-group {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 12px;
+            flex-wrap: wrap;
         }
-        .tab.active {
-            background: #d4af37;
-            color: #1a1a2e;
-            font-weight: 600;
-        }
-        .hidden {
-            display: none;
-        }
-        .checkbox-row {
+        .radio-group label {
             display: flex;
             align-items: center;
-            gap: 8px;
-            margin-bottom: 10px;
+            gap: 5px;
             font-size: 12px;
+            cursor: pointer;
         }
-        .checkbox-row input {
-            accent-color: #d4af37;
-        }
+        .radio-group input[type="radio"] { accent-color: #d4af37; }
         .info {
             background: #1e2a3a;
             padding: 10px;
@@ -219,6 +186,21 @@
             font-size: 11px;
             color: #7dd3fc;
             margin-bottom: 15px;
+        }
+        .progress-bar {
+            width: 100%;
+            height: 4px;
+            background: #252540;
+            border-radius: 2px;
+            margin-bottom: 10px;
+            overflow: hidden;
+        }
+        .progress-bar .fill {
+            height: 100%;
+            background: #d4af37;
+            border-radius: 2px;
+            transition: width 0.3s;
+            width: 0%;
         }
     </style>
 </head>
@@ -229,6 +211,7 @@
     
     <div class="content">
         <div id="status" class="status">Checking page...</div>
+        <div class="progress-bar" id="progressBar" style="display:none"><div class="fill" id="progressFill"></div></div>
         
         <div class="stats">
             <div class="stat">
@@ -249,29 +232,38 @@
 
         <!-- Extract Tab -->
         <div id="tab-extract" class="tab-content">
-            <div class="section" id="albumsSection">
-                <div class="section-title">Albums Found</div>
-                <div class="album-list" id="albumList">
-                    <div class="album-item">No albums found</div>
+            <div class="section">
+                <div class="section-title">Image Size</div>
+                <div class="radio-group">
+                    <label><input type="radio" name="imgSize" value="_k" checked> 2048px (_k)</label>
+                    <label><input type="radio" name="imgSize" value="_h"> 1600px (_h)</label>
+                    <label><input type="radio" name="imgSize" value="_b"> 1024px (_b)</label>
+                    <label><input type="radio" name="imgSize" value="_o"> Original (_o)</label>
                 </div>
             </div>
 
+            <div class="section" id="albumsSection">
+                <div class="section-title">Albums Found</div>
+                <div class="album-controls">
+                    <button class="btn btn-small btn-secondary" id="selectAllBtn">Select All</button>
+                    <button class="btn btn-small btn-secondary" id="deselectAllBtn">Deselect All</button>
+                    <span id="selectedCount">0 selected</span>
+                </div>
+                <div class="album-list" id="albumList">
+                    <div class="album-item"><span class="album-name">No albums found</span></div>
+                </div>
+            </div>
+
+            <button class="btn" id="fetchSelectedBtn">📥 Fetch URLs from Selected Albums</button>
             <button class="btn" id="extractBtn">🔍 Extract Current Page Images</button>
-            <button class="btn" id="loadAllBtn">📥 Load All Images (Scroll)</button>
+            <button class="btn" id="loadAllBtn">⬇️ Load All Images (Scroll)</button>
             <button class="btn btn-secondary" id="extractAlbumsBtn">📁 Refresh Albums List</button>
         </div>
 
         <!-- Output Tab -->
         <div id="tab-output" class="tab-content hidden">
             <div class="section-title">Extracted URLs</div>
-            
-            <div class="checkbox-row">
-                <input type="checkbox" id="useLarge" checked>
-                <label for="useLarge">Large size (_b.jpg)</label>
-            </div>
-            
             <textarea class="output-area" id="outputArea" placeholder="Extracted URLs will appear here..."></textarea>
-            
             <button class="btn" id="copyBtn">📋 Copy to Clipboard</button>
             <button class="btn btn-secondary" id="downloadBtn">💾 Download as TXT</button>
         </div>
@@ -279,26 +271,23 @@
         <!-- Help Tab -->
         <div id="tab-help" class="tab-content hidden">
             <div class="info">
-                <strong>How to use:</strong><br><br>
-                1. Go to your Flickr albums page<br>
-                2. Click "Extract Current Page Images" for visible images<br>
-                3. Click "Load All Images" to scroll and load everything<br>
-                4. Go to Output tab to copy URLs<br><br>
+                <strong>Bulk extraction:</strong><br><br>
+                1. Go to your Flickr albums list page<br>
+                2. Albums are detected automatically<br>
+                3. Select albums with checkboxes<br>
+                4. Choose your preferred image size<br>
+                5. Click "Fetch URLs from Selected Albums"<br>
+                6. Output tab shows URLs grouped by album name<br><br>
                 
-                <strong>For individual albums:</strong><br>
-                Click on an album name to open it, then extract images.
+                <strong>Single album:</strong><br>
+                Open an album, then use "Extract Current Page" or "Load All Images (Scroll)".
             </div>
-            
             <div class="info">
                 <strong>URL Sizes:</strong><br>
-                _s = Small square 75x75<br>
-                _q = Large square 150x150<br>
-                _t = Thumbnail 100px<br>
-                _m = Small 240px<br>
-                _n = Small 320px<br>
-                _b = Large 1024px ✓<br>
-                _c = Medium 800px<br>
-                _o = Original
+                _k = Large 2048px ✓ (recommended)<br>
+                _h = Large 1600px<br>
+                _b = Large 1024px<br>
+                _o = Original (may 404 on some photos)
             </div>
         </div>
     </div>
