@@ -1,44 +1,51 @@
 // Flickr Album URL Extractor - Popup Script
 
-let currentData = {
+var currentData = {
     albums: [],
     images: [],
     albumResults: {},
-    pageType: 'unknown',
     folderName: ''
+};
+
+var SIZE_FALLBACK = {
+    '_k': ['k','h','b'],
+    '_h': ['h','k','b'],
+    '_b': ['b','h','k'],
+    '_o': ['o','k','h','b']
 };
 
 function getSelectedSize() {
     return document.querySelector('input[name="imgSize"]:checked').value;
 }
 
-function convertToSize(url, size) {
-    return url
-        .replace(/_[smtqnbhkco]\.jpg/i, size + '.jpg')
-        .replace(/_[smtqnbhkco]\.png/i, size + '.png');
+function pickBestUrl(photoSizes, preferredSize) {
+    var chain = SIZE_FALLBACK[preferredSize] || ['k','h','b'];
+    for (var i = 0; i < chain.length; i++) {
+        if (photoSizes[chain[i]]) return photoSizes[chain[i]];
+    }
+    var keys = Object.keys(photoSizes);
+    return keys.length > 0 ? photoSizes[keys[0]] : null;
 }
 
 // Tab switching
-document.querySelectorAll('.tab').forEach(tab => {
-    tab.addEventListener('click', () => {
-        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-        document.querySelectorAll('.tab-content').forEach(c => c.classList.add('hidden'));
+document.querySelectorAll('.tab').forEach(function(tab) {
+    tab.addEventListener('click', function() {
+        document.querySelectorAll('.tab').forEach(function(t) { t.classList.remove('active'); });
+        document.querySelectorAll('.tab-content').forEach(function(c) { c.classList.add('hidden'); });
         tab.classList.add('active');
         document.getElementById('tab-' + tab.dataset.tab).classList.remove('hidden');
     });
 });
 
-function setStatus(message, type) {
+function setStatus(msg, type) {
     var s = document.getElementById('status');
-    s.textContent = message;
+    s.textContent = msg;
     s.className = 'status ' + (type || '');
 }
 
 function showProgress(pct) {
-    var bar = document.getElementById('progressBar');
-    var fill = document.getElementById('progressFill');
-    bar.style.display = pct >= 0 ? 'block' : 'none';
-    fill.style.width = pct + '%';
+    document.getElementById('progressBar').style.display = pct >= 0 ? 'block' : 'none';
+    document.getElementById('progressFill').style.width = pct + '%';
 }
 
 function updateStats() {
@@ -46,36 +53,34 @@ function updateStats() {
     var total = currentData.images.length;
     var keys = Object.keys(currentData.albumResults);
     for (var i = 0; i < keys.length; i++) {
-        total += currentData.albumResults[keys[i]].images.length;
+        total += Object.keys(currentData.albumResults[keys[i]].photos).length;
     }
     document.getElementById('imageCount').textContent = total;
 }
 
 function updateSelectedCount() {
-    var checked = document.querySelectorAll('#albumList input[type="checkbox"]:checked').length;
-    document.getElementById('selectedCount').textContent = checked + ' selected';
+    var n = document.querySelectorAll('#albumList input[type="checkbox"]:checked').length;
+    document.getElementById('selectedCount').textContent = n + ' selected';
 }
 
 function renderAlbums() {
     var list = document.getElementById('albumList');
     if (currentData.albums.length === 0) {
-        list.innerHTML = '<div class="album-item"><span class="album-name">No albums found on this page</span></div>';
+        list.innerHTML = '<div class="album-item"><span class="album-name">No albums found</span></div>';
         return;
     }
-
     var html = '';
     for (var i = 0; i < currentData.albums.length; i++) {
         var a = currentData.albums[i];
-        var safeTitle = (a.title || 'Untitled').replace(/"/g, '&quot;');
-        html += '<div class="album-item" data-index="' + i + '">' +
-            '<input type="checkbox" class="album-checkbox" data-id="' + a.id + '" data-url="' + a.url + '" data-title="' + safeTitle + '">' +
-            '<span class="album-name">' + (a.title || 'Untitled') + '</span>' +
-            '<span class="album-photo-count-display">' + (a.photoCount || '') + '</span>' +
-            '<span class="album-status" id="album-status-' + a.id + '"></span>' +
-            '</div>';
+        var safe = (a.title || 'Untitled').replace(/"/g, '&quot;');
+        html += '<div class="album-item">' +
+            '<input type="checkbox" class="album-checkbox" data-id="' + a.id + '" data-url="' + a.url + '" data-title="' + safe + '">' +
+            '<span class="album-name">' + (a.title || 'Untitled') +
+            (a.photoCount ? ' <small style="color:#888">(' + a.photoCount + ')</small>' : '') +
+            '</span>' +
+            '<span class="album-status" id="album-status-' + a.id + '"></span></div>';
     }
     list.innerHTML = html;
-
     list.querySelectorAll('.album-checkbox').forEach(function(cb) {
         cb.addEventListener('change', updateSelectedCount);
     });
@@ -101,35 +106,39 @@ function updateOutput() {
         for (var i = 0; i < albumIds.length; i++) {
             var album = currentData.albumResults[albumIds[i]];
             text += album.title + '\n\n';
-            for (var j = 0; j < album.images.length; j++) {
-                text += convertToSize(album.images[j], size) + '\n';
+            var photoIds = Object.keys(album.photos);
+            for (var j = 0; j < photoIds.length; j++) {
+                var url = pickBestUrl(album.photos[photoIds[j]], size);
+                if (url) text += url + '\n';
             }
             text += '\n';
         }
     }
 
     if (currentData.images.length > 0 && albumIds.length === 0) {
-        if (currentData.folderName) {
-            text += currentData.folderName + '\n\n';
-        }
+        if (currentData.folderName) text += currentData.folderName + '\n\n';
         for (var k = 0; k < currentData.images.length; k++) {
             var img = currentData.images[k];
-            text += convertToSize(img.large || img.thumbnail, size) + '\n';
+            var u = pickBestUrl(img, size);
+            if (u) text += u + '\n';
         }
     }
 
     if (!text) {
-        output.value = '// No images extracted yet\n// Use "Fetch URLs from Selected Albums" or "Extract Current Page Images"';
+        output.value = '// No images extracted yet';
         return;
     }
     output.value = text.trim();
 }
 
-async function executeInTab(code) {
+async function executeInTab(code, tabId) {
     try {
-        var tabs = await browser.tabs.query({ active: true, currentWindow: true });
-        if (!tabs[0]) return null;
-        var results = await browser.tabs.executeScript(tabs[0].id, { code: code });
+        if (!tabId) {
+            var tabs = await browser.tabs.query({ active: true, currentWindow: true });
+            if (!tabs[0]) return null;
+            tabId = tabs[0].id;
+        }
+        var results = await browser.tabs.executeScript(tabId, { code: code });
         return results[0];
     } catch (e) {
         console.error('executeInTab error:', e);
@@ -137,7 +146,81 @@ async function executeInTab(code) {
     }
 }
 
-// Extract albums from albums list page
+// The core extraction code that runs inside a tab to get all photo URLs
+// It reads both rendered HTML and escaped JSON in script tags
+var EXTRACT_ALL_PHOTOS_CODE = `
+(function() {
+    var photos = {};
+
+    function addUrl(url) {
+        if (url.indexOf('//') === 0) url = 'https:' + url;
+        if (url.indexOf('live.staticflickr.com') === -1) return;
+        var m = url.match(/live\\.staticflickr\\.com\\/\\d+\\/(\\d+)_([a-f0-9]+)(?:_([a-z]))?\\.\\w+/);
+        if (!m) return;
+        var photoId = m[1];
+        var size = m[3] || 'z';
+        var dominated = {s:1, q:1, t:1, m:1, n:1, w:1};
+        if (dominated[size]) return;
+        if (!photos[photoId]) photos[photoId] = {};
+        photos[photoId][size] = url;
+    }
+
+    // Get full page HTML, unescape JSON slashes, then find all staticflickr URLs
+    var raw = document.documentElement.innerHTML;
+    var unescaped = raw.replace(/\\\\\\//g, '/');
+    var re = /(?:https?:)?\\/\\/live\\.staticflickr\\.com\\/\\d+\\/\\d+_[a-f0-9]+(?:_[a-z])?\\.\\w+/g;
+    var match;
+    while ((match = re.exec(unescaped)) !== null) {
+        addUrl(match[0]);
+    }
+
+    return photos;
+})();
+`;
+
+// Wait for a tab to finish loading
+function waitForTabLoad(tabId) {
+    return new Promise(function(resolve) {
+        function check(changeTabId, changeInfo) {
+            if (changeTabId === tabId && changeInfo.status === 'complete') {
+                browser.tabs.onUpdated.removeListener(check);
+                resolve();
+            }
+        }
+        browser.tabs.onUpdated.addListener(check);
+        // Also check immediately in case already loaded
+        browser.tabs.get(tabId).then(function(tab) {
+            if (tab.status === 'complete') {
+                browser.tabs.onUpdated.removeListener(check);
+                resolve();
+            }
+        });
+    });
+}
+
+// Open album in background tab, extract photos, close tab
+async function fetchAlbumViaTab(albumUrl) {
+    var tab = null;
+    try {
+        tab = await browser.tabs.create({ url: albumUrl, active: false });
+        await waitForTabLoad(tab.id);
+        // Small delay for any dynamic content
+        await new Promise(function(r) { setTimeout(r, 1500); });
+
+        var photos = await executeInTab(EXTRACT_ALL_PHOTOS_CODE, tab.id);
+
+        await browser.tabs.remove(tab.id);
+        return photos || {};
+    } catch (e) {
+        console.error('fetchAlbumViaTab error:', e);
+        if (tab) {
+            try { await browser.tabs.remove(tab.id); } catch(e2) {}
+        }
+        return {};
+    }
+}
+
+// Extract albums from the current albums list page
 async function extractAlbums() {
     setStatus('Looking for albums...', 'loading');
 
@@ -146,60 +229,33 @@ async function extractAlbums() {
         var albums = [];
         var seen = {};
 
-        // Method 1: photo-list-album links with title attribute
-        var links = document.querySelectorAll('a.photo-list-album[href*="/albums/"], a.photo-list-album[href*="/sets/"]');
+        // Method 1: Links with title attr (Flickr's main pattern)
+        var links = document.querySelectorAll('a[href*="/albums/"][title], a[href*="/sets/"][title]');
         for (var i = 0; i < links.length; i++) {
             var link = links[i];
             var m = link.href.match(/\\/photos\\/[^\\/]+\\/(?:albums|sets)\\/(\\d+)/);
-            if (m && !seen[m[1]]) {
-                seen[m[1]] = true;
-                var title = link.getAttribute('title') || '';
-                if (!title) {
-                    var h4 = link.querySelector('.album-title, h4');
-                    if (h4) title = h4.textContent.trim();
-                }
-                var countEl = link.querySelector('.album-photo-count');
-                var photoCount = countEl ? countEl.textContent.trim() : '';
-                albums.push({ id: m[1], title: title || 'Untitled', url: link.href, photoCount: photoCount });
-            }
+            if (!m || seen[m[1]]) continue;
+            var title = link.getAttribute('title');
+            if (!title || title === 'Albums') continue;
+            seen[m[1]] = true;
+            var countEl = link.querySelector('.album-photo-count');
+            var photoCount = countEl ? countEl.textContent.trim() : '';
+            albums.push({ id: m[1], title: title, url: link.href, photoCount: photoCount });
         }
 
-        // Method 2: any link to /albums/ or /sets/ (broader)
-        if (albums.length === 0) {
-            var allLinks = document.querySelectorAll('a[href*="/albums/"], a[href*="/sets/"]');
-            for (var j = 0; j < allLinks.length; j++) {
-                var link2 = allLinks[j];
-                var m2 = link2.href.match(/\\/photos\\/[^\\/]+\\/(?:albums|sets)\\/(\\d+)/);
-                if (m2 && !seen[m2[1]]) {
-                    seen[m2[1]] = true;
-                    var title2 = link2.getAttribute('title') || '';
-                    if (!title2) {
-                        var h4b = link2.querySelector('.album-title, h4');
-                        if (h4b) title2 = h4b.textContent.trim();
-                    }
-                    if (!title2 && link2.textContent.trim().length < 60) {
-                        title2 = link2.textContent.trim().split('\\n')[0].trim();
-                    }
-                    if (title2 && title2 !== 'Albums') {
-                        albums.push({ id: m2[1], title: title2 || 'Untitled', url: link2.href, photoCount: '' });
-                    }
-                }
-            }
-        }
-
-        // Method 3: data-albumid attributes
+        // Method 2: data-albumid divs
         if (albums.length === 0) {
             var divs = document.querySelectorAll('[data-albumid]');
             for (var k = 0; k < divs.length; k++) {
-                var div = divs[k];
-                var aid = div.getAttribute('data-albumid');
-                if (aid && !seen[aid]) {
-                    seen[aid] = true;
-                    var h4c = div.querySelector('.album-title, h4');
-                    var t = h4c ? h4c.textContent.trim() : 'Untitled';
-                    var user = window.location.pathname.split('/')[2] || '';
-                    albums.push({ id: aid, title: t, url: 'https://www.flickr.com/photos/' + user + '/albums/' + aid, photoCount: '' });
-                }
+                var aid = divs[k].getAttribute('data-albumid');
+                if (!aid || seen[aid]) continue;
+                seen[aid] = true;
+                var h4 = divs[k].querySelector('.album-title, h4');
+                var t = h4 ? h4.textContent.trim() : 'Untitled';
+                var countEl2 = divs[k].querySelector('.album-photo-count');
+                var pc = countEl2 ? countEl2.textContent.trim() : '';
+                var user = window.location.pathname.split('/')[2] || '';
+                albums.push({ id: aid, title: t, url: 'https://www.flickr.com/photos/' + user + '/albums/' + aid, photoCount: pc });
             }
         }
 
@@ -208,7 +264,6 @@ async function extractAlbums() {
     `;
 
     var result = await executeInTab(code);
-
     if (result && result.length > 0) {
         currentData.albums = result;
         setStatus('Found ' + result.length + ' albums', 'success');
@@ -219,56 +274,11 @@ async function extractAlbums() {
     }
 }
 
-// Fetch images from a single album by fetching its HTML pages
-async function fetchAlbumImages(albumUrl) {
-    var code = `
-    (async function() {
-        var albumUrl = ${JSON.stringify(albumUrl)};
-        var allUrls = {};
-        var page = 1;
-        var hasMore = true;
-
-        while (hasMore && page <= 50) {
-            try {
-                var pageUrl = albumUrl.replace(/\\/?$/, '') + (page > 1 ? '/page' + page : '');
-                var resp = await fetch(pageUrl, { credentials: 'include' });
-                var html = await resp.text();
-
-                var re = /https:\\/\\/live\\.staticflickr\\.com\\/\\d+\\/[^\\s"'<>]+\\.(?:jpg|png)/gi;
-                var match;
-                var foundNew = false;
-                while ((match = re.exec(html)) !== null) {
-                    var url = match[0]
-                        .replace(/_[smtqnhkco]\\.jpg/i, '_b.jpg')
-                        .replace(/_[smtqnhkco]\\.png/i, '_b.png');
-                    if (!allUrls[url]) {
-                        allUrls[url] = true;
-                        foundNew = true;
-                    }
-                }
-
-                // Check for next page link
-                if (!foundNew || html.indexOf('/page' + (page + 1)) === -1) {
-                    hasMore = false;
-                }
-                page++;
-            } catch (e) {
-                hasMore = false;
-            }
-        }
-        return Object.keys(allUrls);
-    })();
-    `;
-
-    var result = await executeInTab(code);
-    return result || [];
-}
-
-// Bulk fetch selected albums
+// Bulk fetch selected albums via background tabs
 async function fetchSelectedAlbums() {
     var checkboxes = document.querySelectorAll('#albumList .album-checkbox:checked');
     if (checkboxes.length === 0) {
-        setStatus('No albums selected. Check some albums first.', 'error');
+        setStatus('No albums selected.', 'error');
         return;
     }
 
@@ -285,171 +295,102 @@ async function fetchSelectedAlbums() {
         var album = selected[i];
         var pct = Math.round((i / selected.length) * 100);
         showProgress(pct);
-        setStatus('Fetching album ' + (i + 1) + '/' + selected.length + ': ' + album.title + '...', 'loading');
+        setStatus('Opening album ' + (i + 1) + '/' + selected.length + ': ' + album.title + '...', 'loading');
 
         var statusEl = document.getElementById('album-status-' + album.id);
-        if (statusEl) {
-            statusEl.textContent = 'fetching...';
-            statusEl.className = 'album-status fetching';
-        }
+        if (statusEl) { statusEl.textContent = 'loading...'; statusEl.className = 'album-status fetching'; }
 
-        var images = await fetchAlbumImages(album.url);
+        var photos = await fetchAlbumViaTab(album.url);
+        var count = Object.keys(photos).length;
 
-        currentData.albumResults[album.id] = { title: album.title, images: images };
+        currentData.albumResults[album.id] = { title: album.title, photos: photos };
 
-        if (statusEl) {
-            statusEl.textContent = images.length + ' imgs';
-            statusEl.className = 'album-status done';
-        }
+        if (statusEl) { statusEl.textContent = count + ' photos'; statusEl.className = 'album-status done'; }
         updateStats();
     }
 
     showProgress(100);
-    var totalImages = 0;
-    var keys = Object.keys(currentData.albumResults);
-    for (var j = 0; j < keys.length; j++) {
-        totalImages += currentData.albumResults[keys[j]].images.length;
-    }
-    setStatus('Done! Fetched ' + totalImages + ' images from ' + selected.length + ' albums.', 'success');
+    var totalPhotos = 0;
+    Object.keys(currentData.albumResults).forEach(function(id) {
+        totalPhotos += Object.keys(currentData.albumResults[id].photos).length;
+    });
+    setStatus('Done! ' + totalPhotos + ' photos from ' + selected.length + ' albums.', 'success');
     document.getElementById('fetchSelectedBtn').disabled = false;
     updateOutput();
 
-    setTimeout(function() {
-        document.querySelector('.tab[data-tab="output"]').click();
-    }, 500);
+    setTimeout(function() { document.querySelector('.tab[data-tab="output"]').click(); }, 500);
 }
 
-// Extract images from current page
+// Extract from current page (single album or photostream)
 async function extractImages() {
     setStatus('Extracting images...', 'loading');
 
-    var folderCode = `
+    var folderName = await executeInTab(`
     (function() {
         var el = document.querySelector('.album-title-cntl, h1.title, .album-title, .set-title');
         if (el) return el.textContent.trim();
-        var parts = document.title.split('|');
-        if (parts.length > 1) return parts[0].trim();
-        return document.title.trim();
+        var p = document.title.split('|');
+        return p.length > 1 ? p[0].trim() : document.title.trim();
     })();
-    `;
-    var folderName = await executeInTab(folderCode);
+    `);
     if (folderName) currentData.folderName = folderName;
 
-    var code = `
-    (function() {
-        var images = [];
-        var seen = {};
+    var photos = await executeInTab(EXTRACT_ALL_PHOTOS_CODE);
 
-        var imgs = document.querySelectorAll('img');
-        for (var i = 0; i < imgs.length; i++) {
-            var img = imgs[i];
-            if (img.src && img.src.indexOf('staticflickr') !== -1 && !seen[img.src]) {
-                seen[img.src] = true;
-                var large = img.src
-                    .replace(/_[smtqn]\\.jpg/i, '_b.jpg')
-                    .replace(/_[smtqn]\\.png/i, '_b.png');
-                images.push({ thumbnail: img.src, large: large, alt: img.alt || '' });
-            }
+    if (photos && Object.keys(photos).length > 0) {
+        // Convert to array of size maps
+        currentData.images = [];
+        var ids = Object.keys(photos);
+        for (var i = 0; i < ids.length; i++) {
+            currentData.images.push(photos[ids[i]]);
         }
-
-        var bgEls = document.querySelectorAll('[style*="background"]');
-        for (var j = 0; j < bgEls.length; j++) {
-            var el = bgEls[j];
-            var style = el.getAttribute('style') || '';
-            var m = style.match(/url\\(['\"]?(https?:\\/\\/[^'\")\\s]+)['\"]?\\)/);
-            if (m && m[1].indexOf('staticflickr') !== -1 && !seen[m[1]]) {
-                seen[m[1]] = true;
-                var large2 = m[1]
-                    .replace(/_[smtqn]\\.jpg/i, '_b.jpg')
-                    .replace(/_[smtqn]\\.png/i, '_b.png');
-                images.push({ thumbnail: m[1], large: large2, alt: '' });
-            }
-        }
-
-        return images;
-    })();
-    `;
-
-    var result = await executeInTab(code);
-
-    if (result && result.length > 0) {
-        currentData.images = result;
-        setStatus('Found ' + result.length + ' images!', 'success');
+        setStatus('Found ' + ids.length + ' photos!', 'success');
         updateStats();
         updateOutput();
     } else {
-        setStatus('No images found. Try scrolling or opening an album.', 'error');
+        setStatus('No images found. Try "Load All" or open an album.', 'error');
     }
 }
 
-// Load all by scrolling
+// Load all by scrolling, then extract
 async function loadAllImages() {
-    setStatus('Loading all images (scrolling page)...', 'loading');
+    setStatus('Scrolling to load all images...', 'loading');
     document.getElementById('loadAllBtn').disabled = true;
 
-    var folderCode = `
+    var folderName = await executeInTab(`
     (function() {
         var el = document.querySelector('.album-title-cntl, h1.title, .album-title, .set-title');
         if (el) return el.textContent.trim();
-        var parts = document.title.split('|');
-        if (parts.length > 1) return parts[0].trim();
-        return document.title.trim();
+        var p = document.title.split('|');
+        return p.length > 1 ? p[0].trim() : document.title.trim();
     })();
-    `;
-    var folderName = await executeInTab(folderCode);
+    `);
     if (folderName) currentData.folderName = folderName;
 
-    var code = `
+    // Scroll first
+    await executeInTab(`
     new Promise(function(resolve) {
-        var scrollCount = 0;
-        var lastCount = 0;
-        var noChangeCount = 0;
-        var maxScrolls = 30;
-
-        function extractCurrent() {
-            var images = [];
-            var seen = {};
-            var imgs = document.querySelectorAll('img');
-            for (var i = 0; i < imgs.length; i++) {
-                if (imgs[i].src && imgs[i].src.indexOf('staticflickr') !== -1 && !seen[imgs[i].src]) {
-                    seen[imgs[i].src] = true;
-                    var large = imgs[i].src.replace(/_[smtqn]\\.jpg/i, '_b.jpg').replace(/_[smtqn]\\.png/i, '_b.png');
-                    images.push({ thumbnail: imgs[i].src, large: large, alt: imgs[i].alt || '' });
-                }
-            }
-            var bgEls = document.querySelectorAll('[style*="background"]');
-            for (var j = 0; j < bgEls.length; j++) {
-                var style = bgEls[j].getAttribute('style') || '';
-                var m = style.match(/url\\(['\"]?(https?:\\/\\/[^'\")\\s]+)['\"]?\\)/);
-                if (m && m[1].indexOf('staticflickr') !== -1 && !seen[m[1]]) {
-                    seen[m[1]] = true;
-                    var large2 = m[1].replace(/_[smtqn]\\.jpg/i, '_b.jpg').replace(/_[smtqn]\\.png/i, '_b.png');
-                    images.push({ thumbnail: m[1], large: large2, alt: '' });
-                }
-            }
-            return images;
-        }
-
-        var interval = setInterval(function() {
+        var count = 0, noChange = 0, lastH = 0, max = 30;
+        var iv = setInterval(function() {
             window.scrollTo(0, document.body.scrollHeight);
-            scrollCount++;
-            var current = extractCurrent();
-            if (current.length === lastCount) { noChangeCount++; } else { noChangeCount = 0; lastCount = current.length; }
-            if (noChangeCount >= 3 || scrollCount >= maxScrolls) {
-                clearInterval(interval);
-                window.scrollTo(0, 0);
-                resolve(current);
-            }
+            count++;
+            if (document.body.scrollHeight === lastH) noChange++; else { noChange = 0; lastH = document.body.scrollHeight; }
+            if (noChange >= 3 || count >= max) { clearInterval(iv); window.scrollTo(0, 0); resolve(true); }
         }, 1200);
     });
-    `;
+    `);
 
-    var result = await executeInTab(code);
+    // Then extract
+    var photos = await executeInTab(EXTRACT_ALL_PHOTOS_CODE);
     document.getElementById('loadAllBtn').disabled = false;
 
-    if (result && result.length > 0) {
-        currentData.images = result;
-        setStatus('Loaded ' + result.length + ' images!', 'success');
+    if (photos && Object.keys(photos).length > 0) {
+        currentData.images = [];
+        var ids = Object.keys(photos);
+        for (var i = 0; i < ids.length; i++) {
+            currentData.images.push(photos[ids[i]]);
+        }
+        setStatus('Loaded ' + ids.length + ' photos!', 'success');
         updateStats();
         updateOutput();
     } else {
@@ -459,16 +400,15 @@ async function loadAllImages() {
 
 // Copy
 document.getElementById('copyBtn').addEventListener('click', function() {
-    var output = document.getElementById('outputArea');
-    output.select();
+    document.getElementById('outputArea').select();
     document.execCommand('copy');
     setStatus('Copied to clipboard!', 'success');
 });
 
 // Download
 document.getElementById('downloadBtn').addEventListener('click', function() {
-    var output = document.getElementById('outputArea').value;
-    var blob = new Blob([output], { type: 'text/plain' });
+    var text = document.getElementById('outputArea').value;
+    var blob = new Blob([text], { type: 'text/plain' });
     var url = URL.createObjectURL(blob);
     var a = document.createElement('a');
     a.href = url;
@@ -478,12 +418,12 @@ document.getElementById('downloadBtn').addEventListener('click', function() {
     setStatus('Downloaded!', 'success');
 });
 
-// Size change
+// Size change rerenders output
 document.querySelectorAll('input[name="imgSize"]').forEach(function(r) {
     r.addEventListener('change', updateOutput);
 });
 
-// Buttons
+// Button handlers
 document.getElementById('fetchSelectedBtn').addEventListener('click', fetchSelectedAlbums);
 document.getElementById('extractBtn').addEventListener('click', extractImages);
 document.getElementById('loadAllBtn').addEventListener('click', loadAllImages);
@@ -493,37 +433,30 @@ document.getElementById('extractAlbumsBtn').addEventListener('click', extractAlb
 async function init() {
     try {
         var tabs = await browser.tabs.query({ active: true, currentWindow: true });
-        if (!tabs || !tabs[0]) {
-            setStatus('Could not access active tab.', 'error');
-            return;
-        }
+        if (!tabs || !tabs[0]) { setStatus('No active tab.', 'error'); return; }
         var url = tabs[0].url || '';
 
         if (url.indexOf('flickr.com') === -1) {
-            setStatus('Not a Flickr page. Navigate to flickr.com', 'error');
+            setStatus('Not a Flickr page.', 'error');
             document.getElementById('extractBtn').disabled = true;
             document.getElementById('loadAllBtn').disabled = true;
             document.getElementById('fetchSelectedBtn').disabled = true;
             return;
         }
 
-        if (url.indexOf('/albums') !== -1 || url.indexOf('/sets') !== -1) {
-            // Check if this is the albums LIST page (not a single album)
-            var isSingleAlbum = url.match(/\/(albums|sets)\/\d+/);
-            if (isSingleAlbum) {
-                setStatus('Single album detected. Ready to extract.', 'success');
-                extractImages();
-            } else {
-                setStatus('Albums list page detected.', 'success');
-                extractAlbums();
-            }
+        var isSingleAlbum = url.match(/\/(albums|sets)\/\d+/);
+        if (isSingleAlbum) {
+            setStatus('Single album detected.', 'success');
+            extractImages();
+        } else if (url.indexOf('/albums') !== -1 || url.indexOf('/sets') !== -1) {
+            setStatus('Albums list detected.', 'success');
+            extractAlbums();
         } else {
-            setStatus('Flickr page detected. Ready to extract.', 'success');
+            setStatus('Flickr page detected.', 'success');
             extractImages();
         }
     } catch (e) {
         setStatus('Error: ' + e.message, 'error');
-        console.error('Init error:', e);
     }
 }
 
